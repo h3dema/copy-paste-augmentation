@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "copy-paste-augmentation"
+version = "0.1.0"
+description = "Copy & Paste augmentation"
+authors = ["h3dema <henrique.duartemoura@imec.be>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "copy_paste"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^2.2.1"
+pycocotools = "^2.0.8"
+albumentations = "^1.4.24"
+scikit-image = "^0.25.0"
+matplotlib = "^3.10.0"
+
+[tool.poetry.group.test.dependencies]
+pytest-randomly = "^3.15.0"
+pytest = "^8.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

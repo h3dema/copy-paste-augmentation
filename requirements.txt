@@ -1,0 +1,7 @@
+numpy
+requests
+albumentations
+pycocotools
+scikit-image
+torch
+torchvision

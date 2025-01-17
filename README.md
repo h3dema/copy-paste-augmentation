@@ -35,9 +35,12 @@ the original bounding boxes are just extracted from the updated masks.
 
 ## Integration with Torchvision datasets
 
-The idea is to have a standard torchvision dataset that's decorated for copy-paste functionality.
+The idea is to have a standard torchvision dataset that's decorated for copy-paste functionality. You actually have to two modifications in your code:
 
-The dataset class looks like:
+1. **Decorate the dataset class.**
+
+The decorated dataset class is shown below.
+Notice that it is a regular dataset class from pytorch plus a decorator added at the top.
 
 ```python
 from copy_paste import copy_paste_class
@@ -59,7 +62,16 @@ class SomeVisionDataset(Dataset):
 ```
 The only difference from a regular torchvision dataset is the decorator.
 
-To compose transforms with copy-paste augmentation:
+2. **Add the copy and paste transformation into your transformations**
+
+The code will divide the transformations into 3 parts: (1) pre-`CopyPaste`, (2) the `CopyPaste` transformation and (3) post-`CopyPaste`.
+The first part is applied to both the image (image1) and the image to be pasted (image2). Both images are extracted from the dataset.
+Then the objects defined by the masks are removed from the image2, and they are pasted in image1.
+After that, the resulting image is transformed by the transformation operations after the `CopyPaste` transformation.
+
+
+Here is an example of the transformations.
+There is no post-`CopyPaste` in this example.
 
 ```python
 import albumentations as A
@@ -77,3 +89,9 @@ transform = A.Compose([
 ```
 
 **Note: bbox params are NOT optional!**
+
+
+# Wish list
+
+- Paste images from a different distribution (dataset).
+- Paste images from a different distribution with no transformation, *i.e.*, just grab and paste them over the images from the main dataset.

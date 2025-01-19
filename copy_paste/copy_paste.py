@@ -380,16 +380,14 @@ def copy_paste_annotation(dataset_class):
     and pastes them onto another image. It is useful for tasks such as object detection,
     segmentation, and tracking.
 
-    this should be used as a function annotation for a dataset class, sse example below.
+    It should be used as a function annotation for a dataset class, see example below.
 
     This function splits the transforms defined on the dataset into three parts:
     pre_copy, copy_paste, and post_copy. The pre_copy transforms are applied to both the
     original and paste images. The copy_paste transform is applied to the paste image.
     The post_copy transforms are applied to the resulting image.
 
-    Notice that the annotation assumes that the original __getitem__ function from the dataset was
-    actually written as `def load_example(self, index)` because the annotation will
-    overwrite the __getitem__ function.
+    Notice that the annotation will overwrite the original __getitem__ function, which will be renamed to __load_example__.
 
     Args:
         dataset_class (class): The class of the dataset to be modified.
@@ -477,24 +475,24 @@ def copy_paste_annotation(dataset_class):
     return dataset_class
 
 
-def copy_paste_from(dataset_from_class: torch.utils.data.Dataset):
+def copy_paste_from(dataset_from_obj: torch.utils.data.Dataset):
 
     def copy_paste(dataset_class):
 
         def __init__(self, *args, **kwargs):
             """
-            Initialize the object with the given arguments.
+            Initialize the object to be create from dataset_class with the given arguments.
 
-            This method overrides the original __init__ method and calls the old
-            initialization method with the provided arguments. Additionally, it sets
-            the `dataset_from` attribute to the provided dataset object.
+            This method overrides the original __init__ method of its class 
+            and calls the old initialization method with the provided arguments. 
+            Additionally, it sets the `dataset_from` attribute to the provided dataset object.
 
             Args:
                 *args: Variable length argument list.
                 **kwargs: Arbitrary keyword arguments.
 
             Attributes:
-                dataset_from: The dataset object to be used.
+                dataset_from: The dataset object to be used to copy from.
             """
             self.__old_init__(self, *args, **kwargs)  # super().__init__(*args, **kwargs) - must be the first line!
             self.dataset_from = dataset_from_class  # this must be the object, not a class
@@ -513,7 +511,7 @@ def copy_paste_from(dataset_from_class: torch.utils.data.Dataset):
             #split transforms if it hasn't been done already
             if not hasattr(self, 'post_transforms'):
                 self._split_transforms()
-            img_data = self.__load_example__(idx)
+            img_data = self.__load_example__(idx)  # this is the original __getitem__
             if self.copy_paste is not None:
                 # should use data from self.dataset_from to paste onto images from self
                 paste_idx = random.randint(0, self.__len__() - 1)
@@ -532,10 +530,11 @@ def copy_paste_from(dataset_from_class: torch.utils.data.Dataset):
 
             return img_data
         
-        dataset_class = copy_paste_annotation(dataset_class)
+        dataset_class = copy_paste_annotation(dataset_class) # must be called first to make important modifications to the dataset class.
         setattr(dataset_class, '__old_init__', dataset_class.__init__)  # rename the old function to __old_init__
         setattr(dataset_class, '__init__', __init__)  # overwrite __getitem__
         setattr(dataset_class, '__getitem__', __getitem__)  # overwrite __getitem__ from copy_paste_annotation with the local __getitem__
         return dataset_class
     
     return copy_paste
+    

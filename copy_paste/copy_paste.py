@@ -13,7 +13,7 @@ import albumentations as A
 from copy import deepcopy
 from skimage.filters import gaussian
 
-import pdb  # HERE!!
+import torch
 
 
 def image_copy_paste(img, paste_img, alpha, blend=True, sigma=1):
@@ -475,3 +475,67 @@ def copy_paste_annotation(dataset_class):
     setattr(dataset_class, '__getitem__', __getitem__)  # overwrite __getitem__
 
     return dataset_class
+
+
+def copy_paste_from(dataset_from_class: torch.utils.data.Dataset):
+
+    def copy_paste(dataset_class):
+
+        def __init__(self, *args, **kwargs):
+            """
+            Initialize the object with the given arguments.
+
+            This method overrides the original __init__ method and calls the old
+            initialization method with the provided arguments. Additionally, it sets
+            the `dataset_from` attribute to the provided dataset object.
+
+            Args:
+                *args: Variable length argument list.
+                **kwargs: Arbitrary keyword arguments.
+
+            Attributes:
+                dataset_from: The dataset object to be used.
+            """
+            self.__old_init__(self, *args, **kwargs)  # super().__init__(*args, **kwargs) - must be the first line!
+            self.dataset_from = dataset_from_class  # this must be the object, not a class
+
+        def __getitem__(self, idx):
+            """
+            Retrieves the item at the specified index and applies copy-paste augmentation if applicable.
+
+            Args:
+                idx (int): The index of the item to retrieve.
+
+            Returns:
+                dict: A dictionary containing the image data and any additional transformations applied.
+                  If copy-paste augmentation is applied, the dictionary will also contain information about the pasted image.
+            """
+            #split transforms if it hasn't been done already
+            if not hasattr(self, 'post_transforms'):
+                self._split_transforms()
+            img_data = self.__load_example__(idx)
+            if self.copy_paste is not None:
+                # should use data from self.dataset_from to paste onto images from self
+                paste_idx = random.randint(0, self.__len__() - 1)
+                paste_img_data = self.dataset_from.__getitem__(paste_idx)
+                for k in list(paste_img_data.keys()):
+                    paste_img_data['paste_' + k] = paste_img_data[k]
+                    del paste_img_data[k]
+
+                img_data = self.copy_paste(**img_data, **paste_img_data)
+                # remove from paste_img_data the dict_keys ['paste_image', 'paste_masks', 'paste_bboxes']
+                for k in ['paste_image', 'paste_masks', 'paste_bboxes']:
+                    if k in img_data:
+                        del img_data[k]
+                img_data = self.post_transforms(**img_data)
+                img_data['paste_index'] = paste_idx
+
+            return img_data
+        
+        dataset_class = copy_paste_annotation(dataset_class)
+        setattr(dataset_class, '__old_init__', dataset_class.__init__)  # rename the old function to __old_init__
+        setattr(dataset_class, '__init__', __init__)  # overwrite __getitem__
+        setattr(dataset_class, '__getitem__', __getitem__)  # overwrite __getitem__ from copy_paste_annotation with the local __getitem__
+        return dataset_class
+    
+    return copy_paste
